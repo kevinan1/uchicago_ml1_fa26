@@ -3,6 +3,8 @@ Skeleton code for creating the Random Kitchen Sinks (RKS) and 1-hidden-layer MLP
 
 Note you are *welcome* to completely ignore this file and use your own code, but it's here if you want to use it as a starting point.
 """
+from problems import NeuralNetwork, make_loader, fit, test_loop
+from sklearn.metrics import mean_squared_error
 import numpy as np
 from typing import List, Tuple
 
@@ -23,25 +25,34 @@ class RandomKitchenSinks:
             sigma: scale parameter for the RBF kernel, used for initializing the weight parameters
             ridge_lambda: ridge regularization strength
         """
-        # TODO: initialize the model parameters
-        pass
 
+        self.D, self.sigma, self.ridge_lambda = D, sigma, ridge_lambda
+        rng = np.random.default_rng(69)
+        h = D//2
+        self.W = rng.normal(0.0, 1.0 / sigma, size=(2, h))
+        self.b = rng.uniform(0.0, 2 * np.pi, size=h)
+
+    
     def _features(self, X: np.ndarray) -> np.ndarray:
         """
         Convert the input data X into the random kitchen sinks features. You will likely need to use the parameters initialized in the __init__ method.
         The resulting features should be of shape (n, D or D[+1]), where the plus one is for the intercept term.
         """
-        # TODO: implement the feature transformation
-        pass
+        a = X @ self.W + self.b
+        return np.hstack([np.sin(a), np.cos(a), np.ones((X.shape[0], 1))])
+
 
     def fit(self, X: np.ndarray, y: np.ndarray):
         """
         Fit the ridge regression model to the (1) features computed from the input data X and (2) target values y.
         """
-        # TODO: optional code before getting features
         phi = self._features(X)  # shape (n, D or D[+1])
-        # TODO: fit the ridge regression model and obtain the fitted ridge coefficients
-        pass
+
+        reg = self.ridge_lambda * np.eye(phi.shape[1])
+        reg[-1, -1] = 0.0
+        
+        self.coef_ = np.linalg.solve(phi.T @ phi + reg, phi.T @ y)
+        return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -65,14 +76,20 @@ def sweep_rks_model(sweep_D: List[int], X_train: np.ndarray, y_train: np.ndarray
     best_model = None
     best_val_mse = float('inf')
     best_D = None
+    train_mses = []
+    val_mses = []
     for D in sweep_D:
-        # TODO: fit the model and get the validation MSE
+        model=RandomKitchenSinks(D=D).fit(X_train, y_train)
+        train_mse = mean_squared_error(y_train, model.predict(X_train))
+        val_mse = mean_squared_error(y_val, model.predict(X_val))
+        train_mses.append(train_mse)
+        val_mses.append(val_mse)
         if val_mse < best_val_mse:
             best_model = model
             best_val_mse = val_mse
             best_D = D
 
-    return best_model, best_val_mse, best_D
+    return best_model, best_val_mse, best_D, train_mses, val_mses
 
 """
 For 1-hidden-layer MLP (MLP)
